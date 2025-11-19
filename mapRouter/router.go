@@ -154,3 +154,31 @@ func CreateRouter(conn *pgx.Conn) *Router {
 		conn:    conn,
 	}
 }
+
+func (r *Router) FindNode(longitude float64, latitude float64) *Node {
+	var args = pgx.NamedArgs{
+		"longitude": longitude,
+		"latitude":  latitude,
+	}
+
+	var row = r.conn.QueryRow(
+		context.Background(),
+		"select id from crossroad order by sqrt(pow(longitude-@longitude, 2) + pow(latitude-@latitude, 2)) limit 1;",
+		args,
+	)
+
+	var id int
+	err := row.Scan(&id)
+	if err != nil {
+		panic(err)
+	}
+
+	var node = Node{ID: id, Latitude: latitude, Longitude: longitude}
+
+	return &node
+}
+
+func (r *Router) FindRouteFromCoordinates(fromLatitude float64, fromLongitude float64, toLatitude float64, toLongitude float64) (float64, *Node) {
+	var endingNode = r.FindNode(toLongitude, toLatitude)
+	return r.FindRoute(r.FindNode(fromLongitude, fromLatitude), endingNode), endingNode
+}
